@@ -1,9 +1,7 @@
 import { useRef, useState } from "react";
 import { Observable } from "rxjs";
-// @ts-ignore-next-line
-import * as original from "./dist/context-state.es2019.mjs";
-// @ts-ignore-next-line
-import { StatePromise } from "./dist/context-state.es2019.mjs";
+import * as original from "./dist";
+import { StatePromise } from "./dist";
 import { Signal, StringRecord } from "./dist";
 // @ts-ignore-next-line
 import { useSyncExternalStore } from "use-sync-external-store/shim/index.js";
