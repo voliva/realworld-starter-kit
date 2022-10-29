@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Articles } from "./Articles";
 import { SideBar } from "./SideBar";
 

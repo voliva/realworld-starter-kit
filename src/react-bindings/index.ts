@@ -1,8 +1,7 @@
 import { useRef, useState } from "react";
 import { Observable } from "rxjs";
 import * as original from "./dist";
-import { StatePromise } from "./dist";
-import { Signal, StringRecord } from "./dist";
+import { StatePromise, Signal, StringRecord } from "./dist";
 // @ts-ignore-next-line
 import { useSyncExternalStore } from "use-sync-external-store/shim/index.js";
 

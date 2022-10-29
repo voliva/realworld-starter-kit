@@ -1,3 +1,4 @@
+import { FC, Suspense } from "react";
 import { from, switchMap } from "rxjs";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
@@ -30,50 +31,11 @@ export const globalArticles$ = root.substate(() =>
   )
 );
 
-export const Articles = () => {
+const GlobalFeed = () => {
   const { articles, articlesCount } = useStateObservable(globalArticles$);
 
-  const renderPagination = () => {
-    if (articlesCount <= 1) return null;
-
-    return (
-      <nav>
-        <ul className="pagination">
-          {new Array(Math.ceil(articlesCount / articles.length))
-            .fill(0)
-            .map((_, i) => i + 1)
-            .map((page) => (
-              <li
-                key={page}
-                className={`page-item ng-scope ${page === 1 ? "active" : ""}`}
-              >
-                <a className="page-link ng-binding" href="">
-                  {page}
-                </a>
-              </li>
-            ))}
-        </ul>
-      </nav>
-    );
-  };
-
   return (
-    <div className="col-md-9">
-      <div className="feed-toggle">
-        <ul className="nav nav-pills outline-active">
-          <li className="nav-item">
-            <a className="nav-link disabled" href="">
-              Your Feed
-            </a>
-          </li>
-          <li className="nav-item">
-            <a className="nav-link active" href="">
-              Global Feed
-            </a>
-          </li>
-        </ul>
-      </div>
-
+    <>
       {articles.map((article) => (
         <div className="article-preview" key={article.slug}>
           <div className="article-meta">
@@ -105,7 +67,64 @@ export const Articles = () => {
         </div>
       ))}
 
-      {renderPagination()}
-    </div>
+      <Pagination
+        currentPage={0}
+        totalPages={Math.ceil(articlesCount / articles.length)}
+      />
+    </>
   );
 };
+
+const Pagination: FC<{
+  currentPage: number;
+  totalPages: number;
+}> = ({ currentPage, totalPages }) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <nav>
+      <ul className="pagination">
+        {new Array(totalPages)
+          .fill(0)
+          .map((_, i) => i + 1)
+          .map((page) => (
+            <li
+              key={page}
+              className={`page-item ${
+                page === currentPage + 1 ? "active" : ""
+              }`}
+            >
+              <a className="page-link" href="">
+                {page}
+              </a>
+            </li>
+          ))}
+      </ul>
+    </nav>
+  );
+};
+
+export const Articles = () => (
+  <div className="col-md-9">
+    <div className="feed-toggle">
+      <ul className="nav nav-pills outline-active">
+        <li className="nav-item">
+          <a className="nav-link disabled" href="">
+            Your Feed
+          </a>
+        </li>
+        <li className="nav-item">
+          <a className="nav-link active" href="">
+            Global Feed
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <Suspense
+      fallback={<div className="article-preview">Loading articles...</div>}
+    >
+      <GlobalFeed />
+    </Suspense>
+  </div>
+);
