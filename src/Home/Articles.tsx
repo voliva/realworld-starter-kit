@@ -1,33 +1,13 @@
-import { FC, Suspense } from "react";
+import { FC, Suspense, useState } from "react";
 import { from, switchMap } from "rxjs";
+import { ArticlesResponse } from "../apiTypes";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
+import { isLoggedIn$ } from "../user";
 
 export const globalArticles$ = root.substate(() =>
   from(fetch(`${API_URL}/articles`)).pipe(
-    switchMap(
-      (res) =>
-        res.json() as Promise<{
-          articles: Array<{
-            author: {
-              bio: null;
-              following: boolean;
-              image: string;
-              username: string;
-            };
-            body: string;
-            createdAt: string;
-            description: string;
-            favorited: boolean;
-            favoritesCount: number;
-            slug: string;
-            tagList: string[];
-            title: string;
-            updatedAt: string;
-          }>;
-          articlesCount: number;
-        }>
-    )
+    switchMap((res) => res.json() as Promise<ArticlesResponse>)
   )
 );
 
@@ -104,27 +84,33 @@ const Pagination: FC<{
   );
 };
 
-export const Articles = () => (
-  <div className="col-md-9">
-    <div className="feed-toggle">
-      <ul className="nav nav-pills outline-active">
-        <li className="nav-item">
-          <a className="nav-link disabled" href="">
-            Your Feed
-          </a>
-        </li>
-        <li className="nav-item">
-          <a className="nav-link active" href="">
-            Global Feed
-          </a>
-        </li>
-      </ul>
-    </div>
+export const Articles = () => {
+  const isLoggedIn = useStateObservable(isLoggedIn$);
 
-    <Suspense
-      fallback={<div className="article-preview">Loading articles...</div>}
-    >
-      <GlobalFeed />
-    </Suspense>
-  </div>
-);
+  return (
+    <div className="col-md-9">
+      <div className="feed-toggle">
+        <ul className="nav nav-pills outline-active">
+          {isLoggedIn ? (
+            <li className="nav-item">
+              <a className="nav-link" href="">
+                Your Feed
+              </a>
+            </li>
+          ) : null}
+          <li className="nav-item">
+            <a className="nav-link active" href="">
+              Global Feed
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <Suspense
+        fallback={<div className="article-preview">Loading articles...</div>}
+      >
+        <GlobalFeed />
+      </Suspense>
+    </div>
+  );
+};
