@@ -1,19 +1,71 @@
+import classnames from "classnames";
 import { FC, Suspense, useState } from "react";
-import { from, switchMap } from "rxjs";
-import { ArticlesResponse } from "../apiTypes";
+import { Link } from "react-router-dom";
+import { from, Observable, of, startWith, switchMap } from "rxjs";
+import { Article, ArticlesResponse } from "../apiTypes";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
-import { isLoggedIn$ } from "../user";
+import { isLoggedIn$, user$ } from "../user";
 
-export const globalArticles$ = root.substate(() =>
-  from(fetch(`${API_URL}/articles`)).pipe(
-    switchMap((res) => res.json() as Promise<ArticlesResponse>)
-  )
+const tabSignal = user$.createSignal<"global" | "yours">();
+const selectedTab$ = user$.substate((ctx): Observable<"global" | "yours"> => {
+  const user = ctx(user$);
+  if (!user) {
+    return of("global");
+  }
+  return tabSignal.getSignal$().pipe(startWith("yours" as const));
+});
+
+const pageSignal = selectedTab$.createSignal<number>();
+const selectedPage$ = selectedTab$.substate(() =>
+  pageSignal.getSignal$().pipe(startWith(0))
 );
 
-const GlobalFeed = () => {
-  const { articles, articlesCount } = useStateObservable(globalArticles$);
+const articles$ = selectedTab$.substate((ctx, $) => {
+  const selectedTab = ctx(selectedTab$);
+  if (selectedTab === "global") {
+    return $(selectedPage$).pipe(
+      switchMap((page) =>
+        fetch(`${API_URL}/articles?limit=10&offset=${page * 10}`)
+      ),
+      switchMap((res) => res.json() as Promise<ArticlesResponse>)
+    );
+  }
 
+  const user = ctx(user$);
+  return $(selectedPage$).pipe(
+    switchMap((page) =>
+      fetch(`${API_URL}/articles/feed?limit=10&offset=${page * 10}`, {
+        headers: {
+          authorization: `Token ${user!.token}`,
+        },
+      })
+    ),
+    switchMap((res) => res.json() as Promise<ArticlesResponse>)
+  );
+});
+
+const Feed = () => {
+  const currentPage = useStateObservable(selectedPage$);
+  const { articles, articlesCount } = useStateObservable(articles$);
+
+  return (
+    <>
+      <ArticlesView articles={articles} />
+      <Pagination
+        currentPage={currentPage}
+        totalPages={
+          articles.length ? Math.ceil(articlesCount / articles.length) : 0
+        }
+      />
+    </>
+  );
+};
+
+const ArticlesView: FC<{ articles: Article[] }> = ({ articles }) => {
+  if (articles.length === 0) {
+    return <div className="article-preview">No articles are here... yet.</div>;
+  }
   return (
     <>
       {articles.map((article) => (
@@ -46,11 +98,6 @@ const GlobalFeed = () => {
           </a>
         </div>
       ))}
-
-      <Pagination
-        currentPage={0}
-        totalPages={Math.ceil(articlesCount / articles.length)}
-      />
     </>
   );
 };
@@ -66,17 +113,19 @@ const Pagination: FC<{
       <ul className="pagination">
         {new Array(totalPages)
           .fill(0)
-          .map((_, i) => i + 1)
+          .map((_, i) => i)
           .map((page) => (
             <li
               key={page}
-              className={`page-item ${
-                page === currentPage + 1 ? "active" : ""
-              }`}
+              className={`page-item ${page === currentPage ? "active" : ""}`}
             >
-              <a className="page-link" href="">
-                {page}
-              </a>
+              <Link
+                className="page-link"
+                to=""
+                onClick={() => pageSignal.push(page)}
+              >
+                {page + 1}
+              </Link>
             </li>
           ))}
       </ul>
@@ -86,6 +135,7 @@ const Pagination: FC<{
 
 export const Articles = () => {
   const isLoggedIn = useStateObservable(isLoggedIn$);
+  const selectedTab = useStateObservable(selectedTab$);
 
   return (
     <div className="col-md-9">
@@ -93,15 +143,27 @@ export const Articles = () => {
         <ul className="nav nav-pills outline-active">
           {isLoggedIn ? (
             <li className="nav-item">
-              <a className="nav-link" href="">
+              <Link
+                className={classnames("nav-link", {
+                  active: selectedTab === "yours",
+                })}
+                to=""
+                onClick={() => tabSignal.push("yours")}
+              >
                 Your Feed
-              </a>
+              </Link>
             </li>
           ) : null}
           <li className="nav-item">
-            <a className="nav-link active" href="">
+            <Link
+              className={classnames("nav-link", {
+                active: selectedTab === "global",
+              })}
+              to=""
+              onClick={() => tabSignal.push("global")}
+            >
               Global Feed
-            </a>
+            </Link>
           </li>
         </ul>
       </div>
@@ -109,7 +171,7 @@ export const Articles = () => {
       <Suspense
         fallback={<div className="article-preview">Loading articles...</div>}
       >
-        <GlobalFeed />
+        <Feed />
       </Suspense>
     </div>
   );
