@@ -1,7 +1,15 @@
 import classnames from "classnames";
 import { FC, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
-import { from, Observable, of, startWith, switchMap } from "rxjs";
+import {
+  concat,
+  from,
+  Observable,
+  of,
+  startWith,
+  switchMap,
+  withLatestFrom,
+} from "rxjs";
 import { Article, ArticlesResponse } from "../apiTypes";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
@@ -21,37 +29,45 @@ const selectedPage$ = selectedTab$.substate(() =>
   pageSignal.getSignal$().pipe(startWith(0))
 );
 
-const articles$ = selectedTab$.substate((ctx, $) => {
-  const selectedTab = ctx(selectedTab$);
-  if (selectedTab === "global") {
+const articles$ = selectedTab$.substate(
+  (ctx, $): Observable<ArticlesResponse & { isLoading: boolean }> => {
+    const selectedTab = ctx(selectedTab$);
+    const user = ctx(user$);
+
+    const fetchArticles = (page: number) =>
+      selectedTab === "global"
+        ? fetch(`${API_URL}/articles?limit=10&offset=${page * 10}`)
+        : fetch(`${API_URL}/articles/feed?limit=10&offset=${page * 10}`, {
+            headers: {
+              authorization: `Token ${user!.token}`,
+            },
+          });
+
     return $(selectedPage$).pipe(
-      switchMap((page) =>
-        fetch(`${API_URL}/articles?limit=10&offset=${page * 10}`)
-      ),
-      switchMap((res) => res.json() as Promise<ArticlesResponse>)
+      withLatestFrom($(articles$).pipe(startWith(null))),
+      switchMap(([page, articles]) => {
+        const result = fetchArticles(page)
+          .then((r): Promise<ArticlesResponse> => r.json())
+          .then((response) => ({
+            ...response,
+            isLoading: false,
+          }));
+        if (!articles) {
+          return result;
+        }
+        return concat([{ ...articles, isLoading: true }], result);
+      })
     );
   }
-
-  const user = ctx(user$);
-  return $(selectedPage$).pipe(
-    switchMap((page) =>
-      fetch(`${API_URL}/articles/feed?limit=10&offset=${page * 10}`, {
-        headers: {
-          authorization: `Token ${user!.token}`,
-        },
-      })
-    ),
-    switchMap((res) => res.json() as Promise<ArticlesResponse>)
-  );
-});
+);
 
 const Feed = () => {
   const currentPage = useStateObservable(selectedPage$);
-  const { articles, articlesCount } = useStateObservable(articles$);
+  const { articles, articlesCount, isLoading } = useStateObservable(articles$);
 
   return (
     <>
-      <ArticlesView articles={articles} />
+      <ArticlesView articles={articles} isLoading={isLoading} />
       <Pagination
         currentPage={currentPage}
         totalPages={
@@ -62,7 +78,10 @@ const Feed = () => {
   );
 };
 
-const ArticlesView: FC<{ articles: Article[] }> = ({ articles }) => {
+const ArticlesView: FC<{ articles: Article[]; isLoading: boolean }> = ({
+  articles,
+  isLoading,
+}) => {
   if (articles.length === 0) {
     return <div className="article-preview">No articles are here... yet.</div>;
   }
@@ -98,6 +117,9 @@ const ArticlesView: FC<{ articles: Article[] }> = ({ articles }) => {
           </a>
         </div>
       ))}
+      {isLoading ? (
+        <div className="article-preview">Loading articles...</div>
+      ) : null}
     </>
   );
 };

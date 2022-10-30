@@ -196,6 +196,10 @@ export const useStateObservable = <O>(source$: StateNode<O, any>): O => {
             throw e;
           });
         },
+        complete() {
+          next();
+          ref.args[0](next);
+        },
       });
       return () => {
         subscription.unsubscribe();
