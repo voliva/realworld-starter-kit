@@ -1,7 +1,9 @@
 import { Suspense } from "react";
+import { Link } from "react-router-dom";
 import { from, map, switchMap } from "rxjs";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
+import { tagSignal } from "./Articles";
 
 const tags$ = root.substate(() =>
   from(fetch(`${API_URL}/tags`)).pipe(
@@ -16,9 +18,14 @@ const PopularTags = () => {
   return (
     <div className="tag-list">
       {tags.map((tag, i) => (
-        <a key={i} href="" className="tag-pill tag-default">
+        <Link
+          key={i}
+          to=""
+          className="tag-pill tag-default"
+          onClick={() => tagSignal.push(tag)}
+        >
           {tag}
-        </a>
+        </Link>
       ))}
     </div>
   );

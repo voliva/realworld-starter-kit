@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import {
   concat,
   from,
+  map,
+  merge,
   Observable,
   of,
   startWith,
@@ -16,13 +18,16 @@ import { API_URL, root } from "../root";
 import { isLoggedIn$, user$ } from "../user";
 
 const tabSignal = user$.createSignal<"global" | "yours">();
-const selectedTab$ = user$.substate((ctx): Observable<"global" | "yours"> => {
-  const user = ctx(user$);
-  if (!user) {
-    return of("global");
+export const tagSignal = user$.createSignal<string>();
+const selectedTab$ = user$.substate(
+  (ctx): Observable<"global" | "yours" | `#${string}`> => {
+    const user = ctx(user$);
+    return merge(
+      tabSignal.getSignal$(),
+      tagSignal.getSignal$().pipe(map((v) => `#${v}` as const))
+    ).pipe(startWith(user ? ("yours" as const) : ("global" as const)));
   }
-  return tabSignal.getSignal$().pipe(startWith("yours" as const));
-});
+);
 
 const pageSignal = selectedTab$.createSignal<number>();
 const selectedPage$ = selectedTab$.substate(() =>
@@ -37,6 +42,12 @@ const articles$ = selectedTab$.substate(
     const fetchArticles = (page: number) =>
       selectedTab === "global"
         ? fetch(`${API_URL}/articles?limit=10&offset=${page * 10}`)
+        : selectedTab.startsWith("#")
+        ? fetch(
+            `${API_URL}/articles?limit=10&offset=${
+              page * 10
+            }&tag=${selectedTab.substring(1)}`
+          )
         : fetch(`${API_URL}/articles/feed?limit=10&offset=${page * 10}`, {
             headers: {
               authorization: `Token ${user!.token}`,
@@ -187,6 +198,13 @@ export const Articles = () => {
               Global Feed
             </Link>
           </li>
+          {selectedTab.startsWith("#") ? (
+            <li className="nav-item">
+              <Link className="nav-link active" to="">
+                {selectedTab}
+              </Link>
+            </li>
+          ) : null}
         </ul>
       </div>
 
