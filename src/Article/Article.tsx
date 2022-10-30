@@ -1,4 +1,28 @@
+import { map, of } from "rxjs";
+import { Article as APIArticle } from "../apiTypes";
+import { combineStates, useStateObservable } from "../react-bindings";
+import { matchedRoutes$ } from "../router";
+import { user$, userFetch$ } from "../user";
+
+const selectedArticle$ = combineStates({
+  matchedRoutes: matchedRoutes$,
+  user: user$,
+}).substate((ctx, $) => {
+  const routes = ctx(matchedRoutes$);
+  const route = routes?.find((r) => r.route.id === "article");
+  if (!route) return of(null); // TODO routeState
+
+  const slug = route.params.slug!;
+
+  return userFetch$<{ article: APIArticle }>(ctx, `/articles/${slug}`).pipe(
+    map(({ article }) => article)
+  );
+});
+
 export const Article = () => {
+  const article = useStateObservable(selectedArticle$);
+  console.log(article);
+
   return (
     <div className="article-page">
       <div className="banner">

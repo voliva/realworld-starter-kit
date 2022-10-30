@@ -16,7 +16,7 @@ import {
 import { Article, ArticlesResponse } from "../apiTypes";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
-import { isLoggedIn$, user$ } from "../user";
+import { isLoggedIn$, user$, userFetch$ } from "../user";
 import { format } from "date-fns";
 
 const tabSignal = user$.createSignal<"global" | "yours">();
@@ -40,32 +40,34 @@ const favoriteSignal = selectedTab$.createSignal<string>();
 const articles$ = selectedTab$.substate(
   (ctx, $): Observable<ArticlesResponse & { isLoading: boolean }> => {
     const selectedTab = ctx(selectedTab$);
-    const user = ctx(user$);
 
     const fetchArticles = (page: number) =>
       selectedTab === "global"
-        ? fetch(`${API_URL}/articles?limit=10&offset=${page * 10}`)
-        : selectedTab.startsWith("#")
-        ? fetch(
-            `${API_URL}/articles?limit=10&offset=${
-              page * 10
-            }&tag=${selectedTab.substring(1)}`
+        ? userFetch$<ArticlesResponse>(
+            ctx,
+            `/articles?limit=10&offset=${page * 10}`
           )
-        : fetch(`${API_URL}/articles/feed?limit=10&offset=${page * 10}`, {
-            headers: {
-              authorization: `Token ${user!.token}`,
-            },
-          });
+        : selectedTab.startsWith("#")
+        ? userFetch$<ArticlesResponse>(
+            ctx,
+            `/articles?limit=10&offset=${page * 10}&tag=${selectedTab.substring(
+              1
+            )}`
+          )
+        : userFetch$<ArticlesResponse>(
+            ctx,
+            `/articles/feed?limit=10&offset=${page * 10}`
+          );
 
     return $(selectedPage$).pipe(
       withLatestFrom($(articles$).pipe(startWith(null))),
       switchMap(([page, articles]) => {
-        const result = fetchArticles(page)
-          .then((r): Promise<ArticlesResponse> => r.json())
-          .then((response) => ({
+        const result = fetchArticles(page).pipe(
+          map((response) => ({
             ...response,
             isLoading: false,
-          }));
+          }))
+        );
         if (!articles) {
           return result;
         }
@@ -80,12 +82,13 @@ const articles$ = selectedTab$.substate(
           ),
           filter((v) => !!v),
           switchMap((article) =>
-            fetch(`${API_URL}/articles/${article.slug}/favorite`, {
-              method: article.favorited ? "DELETE" : "POST",
-              headers: {
-                authorization: `Token ${user?.token}`,
-              },
-            }).then((r): Promise<{ article: Article }> => r.json())
+            userFetch$<{ article: Article }>(
+              ctx,
+              `${API_URL}/articles/${article.slug}/favorite`,
+              {
+                method: article.favorited ? "DELETE" : "POST",
+              }
+            )
           ),
           map(({ article }) => {
             const idx = initialValue.articles.findIndex(
