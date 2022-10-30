@@ -1,8 +1,9 @@
 import classnames from "classnames";
 import { FC, Suspense, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   concat,
+  filter,
   from,
   map,
   merge,
@@ -16,24 +17,26 @@ import { Article, ArticlesResponse } from "../apiTypes";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
 import { isLoggedIn$, user$ } from "../user";
+import { format } from "date-fns";
 
 const tabSignal = user$.createSignal<"global" | "yours">();
 export const tagSignal = user$.createSignal<string>();
 const selectedTab$ = user$.substate(
-  (ctx): Observable<"global" | "yours" | `#${string}`> => {
+  (ctx, $): Observable<"global" | "yours" | `#${string}`> => {
     const user = ctx(user$);
     return merge(
-      tabSignal.getSignal$(),
-      tagSignal.getSignal$().pipe(map((v) => `#${v}` as const))
+      $(tabSignal),
+      $(tagSignal).pipe(map((v) => `#${v}` as const))
     ).pipe(startWith(user ? ("yours" as const) : ("global" as const)));
   }
 );
 
 const pageSignal = selectedTab$.createSignal<number>();
-const selectedPage$ = selectedTab$.substate(() =>
-  pageSignal.getSignal$().pipe(startWith(0))
+const selectedPage$ = selectedTab$.substate((_, $) =>
+  $(pageSignal).pipe(startWith(0))
 );
 
+const favoriteSignal = selectedTab$.createSignal<string>();
 const articles$ = selectedTab$.substate(
   (ctx, $): Observable<ArticlesResponse & { isLoading: boolean }> => {
     const selectedTab = ctx(selectedTab$);
@@ -67,7 +70,36 @@ const articles$ = selectedTab$.substate(
           return result;
         }
         return concat([{ ...articles, isLoading: true }], result);
-      })
+      }),
+      switchMap((initialValue) =>
+        $(favoriteSignal).pipe(
+          // This should become easier once instances land
+          map(
+            (slug) =>
+              initialValue.articles.find((article) => article.slug === slug)!
+          ),
+          filter((v) => !!v),
+          switchMap((article) =>
+            fetch(`${API_URL}/articles/${article.slug}/favorite`, {
+              method: article.favorited ? "DELETE" : "POST",
+              headers: {
+                authorization: `Token ${user?.token}`,
+              },
+            }).then((r): Promise<{ article: Article }> => r.json())
+          ),
+          map(({ article }) => {
+            const idx = initialValue.articles.findIndex(
+              (a) => a.slug === article.slug
+            );
+            initialValue.articles = [...initialValue.articles];
+            initialValue.articles[idx] = article;
+            return {
+              ...initialValue,
+            };
+          }),
+          startWith(initialValue)
+        )
+      )
     );
   }
 );
@@ -93,6 +125,9 @@ const ArticlesView: FC<{ articles: Article[]; isLoading: boolean }> = ({
   articles,
   isLoading,
 }) => {
+  const isLoggedIn = useStateObservable(isLoggedIn$);
+  const navigate = useNavigate();
+
   if (articles.length === 0) {
     return <div className="article-preview">No articles are here... yet.</div>;
   }
@@ -108,15 +143,27 @@ const ArticlesView: FC<{ articles: Article[]; isLoading: boolean }> = ({
               <a href="" className="author">
                 {article.author.username}
               </a>
-              <span className="date">{article.createdAt}</span>
+              <span className="date">
+                {format(new Date(article.createdAt), "MMMM d, yyyy")}
+              </span>
             </div>
-            <button className="btn btn-outline-primary btn-sm pull-xs-right">
+            <button
+              className={classnames("btn btn-sm pull-xs-right", {
+                "btn-outline-primary": !article.favorited,
+                "btn-primary": article.favorited,
+              })}
+              onClick={() =>
+                isLoggedIn
+                  ? favoriteSignal.push(article.slug)
+                  : navigate("/register")
+              }
+            >
               <i className="ion-heart"></i> {article.favoritesCount}
             </button>
           </div>
           <a href="" className="preview-link">
             <h1>{article.title}</h1>
-            <p>{article.body.split("\\n")[0]}</p>
+            <p>{article.description}</p>
             <span>Read more...</span>
             <ul className="tag-list">
               {article.tagList.map((tag, i) => (

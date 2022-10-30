@@ -21,8 +21,8 @@ const loginSignal = root.createSignal<{
   password: string;
 }>();
 const loginResult$ = root.substate(
-  (): Observable<{ loading: boolean; error: string | null }> =>
-    loginSignal.getSignal$().pipe(
+  (_, $): Observable<{ loading: boolean; error: string | null }> =>
+    $(loginSignal).pipe(
       exhaustMap((user) =>
         concat(
           [

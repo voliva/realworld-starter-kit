@@ -4,10 +4,10 @@ import { API_URL, root } from "./root";
 
 export const userSignal = root.createSignal<User>();
 
-export const user$ = root.substate((): Observable<User | null> => {
-  const login$ = userSignal
-    .getSignal$()
-    .pipe(tap((user) => localStorage.setItem("jwtToken", user.token)));
+export const user$ = root.substate((_, $): Observable<User | null> => {
+  const login$ = $(userSignal).pipe(
+    tap((user) => localStorage.setItem("jwtToken", user.token))
+  );
 
   const jwtToken = localStorage.getItem("jwtToken");
   if (jwtToken) {
