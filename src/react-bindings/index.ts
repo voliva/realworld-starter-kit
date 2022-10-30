@@ -107,9 +107,11 @@ export const combineStates: <States extends StringRecord<StateNode<any, any>>>(
     ? States
     : never
 ) => StringRecordNodeToNodeStringRecord<States> = (states) =>
-  original.combineStates(
-    Object.fromEntries(
-      Object.entries(states).map(([key, value]) => [key, value.original])
+  wrapStateNode(
+    original.combineStates(
+      Object.fromEntries(
+        Object.entries(states).map(([key, value]) => [key, value.original])
+      )
     )
   ) as any;
 

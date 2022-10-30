@@ -1,8 +1,21 @@
-import { map, of } from "rxjs";
+import {
+  catchError,
+  concat,
+  EMPTY,
+  filter,
+  map,
+  NEVER,
+  of,
+  race,
+  take,
+} from "rxjs";
 import { Article as APIArticle } from "../apiTypes";
 import { combineStates, useStateObservable } from "../react-bindings";
-import { matchedRoutes$ } from "../router";
+import { matchedRoutes$ } from "../matchedRoutes";
 import { user$, userFetch$ } from "../user";
+import { articles$ } from "../Home/Articles";
+import { format } from "date-fns";
+import React, { FC } from "react";
 
 const selectedArticle$ = combineStates({
   matchedRoutes: matchedRoutes$,
@@ -14,80 +27,60 @@ const selectedArticle$ = combineStates({
 
   const slug = route.params.slug!;
 
-  return userFetch$<{ article: APIArticle }>(ctx, `/articles/${slug}`).pipe(
-    map(({ article }) => article)
+  const freshRequest$ = userFetch$<{ article: APIArticle }>(
+    ctx,
+    `/articles/${slug}`
+  ).pipe(map(({ article }) => article));
+  const existingArticle$ = $(articles$).pipe(
+    take(1),
+    map(({ articles }) => articles.find((article) => article.slug === slug)!),
+    filter((v) => !!v),
+    catchError(() => EMPTY)
   );
+
+  return race(concat(existingArticle$, NEVER), freshRequest$);
 });
 
 export const Article = () => {
   const article = useStateObservable(selectedArticle$);
-  console.log(article);
+  console.log({ article });
+  if (!article) return null;
 
   return (
     <div className="article-page">
       <div className="banner">
         <div className="container">
-          <h1>How to build webapps that scale</h1>
+          <h1>{article.title}</h1>
 
-          <div className="article-meta">
-            <a href="">
-              <img src="http://i.imgur.com/Qr71crq.jpg" />
-            </a>
-            <div className="info">
-              <a href="" className="author">
-                Eric Simons
-              </a>
-              <span className="date">January 20th</span>
-            </div>
-            <button className="btn btn-sm btn-outline-secondary">
-              <i className="ion-plus-round"></i>
-              &nbsp; Follow Eric Simons <span className="counter">(10)</span>
-            </button>
-            &nbsp;&nbsp;
-            <button className="btn btn-sm btn-outline-primary">
-              <i className="ion-heart"></i>
-              &nbsp; Favorite Post <span className="counter">(29)</span>
-            </button>
-          </div>
+          <ArticleMeta article={article} />
         </div>
       </div>
 
       <div className="container page">
         <div className="row article-content">
-          <div className="col-md-12">
+          <div className="col-xs-12">
             <p>
-              Web development technologies have evolved at an incredible clip
-              over the past few years.
+              {article.body.split("\\n").map((v, i) => (
+                <React.Fragment key={i}>
+                  {v}
+                  <br />
+                </React.Fragment>
+              ))}
             </p>
-            <h2 id="introducing-ionic">Introducing RealWorld.</h2>
-            <p>It's a great solution for learning how other frameworks work.</p>
+            <ul className="tag-list">
+              {article.tagList.map((tag) => (
+                <li
+                  key={tag}
+                  className="tag-default tag-pill tag-outline"
+                >{` ${tag} `}</li>
+              ))}
+            </ul>
           </div>
         </div>
 
         <hr />
 
-        <div className="article-actions">
-          <div className="article-meta">
-            <a href="profile.html">
-              <img src="http://i.imgur.com/Qr71crq.jpg" />
-            </a>
-            <div className="info">
-              <a href="" className="author">
-                Eric Simons
-              </a>
-              <span className="date">January 20th</span>
-            </div>
-            <button className="btn btn-sm btn-outline-secondary">
-              <i className="ion-plus-round"></i>
-              &nbsp; Follow Eric Simons
-            </button>
-            &nbsp;
-            <button className="btn btn-sm btn-outline-primary">
-              <i className="ion-heart"></i>
-              &nbsp; Favorite Post <span className="counter">(29)</span>
-            </button>
-          </div>
-        </div>
+        <ArticleMeta article={article} />
 
         <div className="row">
           <div className="col-xs-12 col-md-8 offset-md-2">
@@ -161,3 +154,29 @@ export const Article = () => {
     </div>
   );
 };
+
+const ArticleMeta: FC<{ article: APIArticle }> = ({ article }) => (
+  <div className="article-meta">
+    <a href="">
+      <img src={article.author.image} />
+    </a>
+    <div className="info">
+      {/* TODO is this shared with Articles?*/}
+      <a href="" className="author">
+        {article.author.username}
+      </a>
+      <span className="date">
+        {format(new Date(article.createdAt), "MMMM d, yyyy")}
+      </span>
+    </div>
+    <button className="btn btn-sm btn-outline-secondary">
+      <i className="ion-plus-round"></i>
+      &nbsp; Follow {article.author.username}{" "}
+    </button>
+    <button className="btn btn-sm btn-outline-primary">
+      <i className="ion-heart"></i>
+      &nbsp; Favorite Article{" "}
+      <span className="counter">({article.favoritesCount})</span>
+    </button>
+  </div>
+);

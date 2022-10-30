@@ -37,7 +37,7 @@ const selectedPage$ = selectedTab$.substate((_, $) =>
 );
 
 const favoriteSignal = selectedTab$.createSignal<string>();
-const articles$ = selectedTab$.substate(
+export const articles$ = selectedTab$.substate(
   (ctx, $): Observable<ArticlesResponse & { isLoading: boolean }> => {
     const selectedTab = ctx(selectedTab$);
 
@@ -164,7 +164,7 @@ const ArticlesView: FC<{ articles: Article[]; isLoading: boolean }> = ({
               <i className="ion-heart"></i> {article.favoritesCount}
             </button>
           </div>
-          <a href="" className="preview-link">
+          <Link to={`/article/${article.slug}`} className="preview-link">
             <h1>{article.title}</h1>
             <p>{article.description}</p>
             <span>Read more...</span>
@@ -175,7 +175,7 @@ const ArticlesView: FC<{ articles: Article[]; isLoading: boolean }> = ({
                 </li>
               ))}
             </ul>
-          </a>
+          </Link>
         </div>
       ))}
       {isLoading ? (
