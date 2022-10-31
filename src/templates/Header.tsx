@@ -1,6 +1,6 @@
 import { useStateObservable } from "../react-bindings";
+import { Link } from "../router";
 import { user$ } from "../user";
-import { Link } from "react-router-dom";
 
 export const Header = () => {
   const user = useStateObservable(user$);

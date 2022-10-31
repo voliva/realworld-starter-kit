@@ -1,23 +1,20 @@
 import classnames from "classnames";
-import { FC, Suspense, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { FC, Suspense } from "react";
 import {
   concat,
   filter,
-  from,
   map,
   merge,
   Observable,
-  of,
   startWith,
   switchMap,
   withLatestFrom,
 } from "rxjs";
 import { Article, ArticlesResponse } from "../apiTypes";
 import { useStateObservable } from "../react-bindings";
-import { API_URL, root } from "../root";
+import { Link, navigate } from "../router";
 import { isLoggedIn$, user$, userFetch$ } from "../user";
-import { format } from "date-fns";
 
 const tabSignal = user$.createSignal<"global" | "yours">();
 export const tagSignal = user$.createSignal<string>();
@@ -84,7 +81,7 @@ export const articles$ = selectedTab$.substate(
           switchMap((article) =>
             userFetch$<{ article: Article }>(
               ctx,
-              `${API_URL}/articles/${article.slug}/favorite`,
+              `/articles/${article.slug}/favorite`,
               {
                 method: article.favorited ? "DELETE" : "POST",
               }
@@ -129,7 +126,6 @@ const ArticlesView: FC<{ articles: Article[]; isLoading: boolean }> = ({
   isLoading,
 }) => {
   const isLoggedIn = useStateObservable(isLoggedIn$);
-  const navigate = useNavigate();
 
   if (articles.length === 0) {
     return <div className="article-preview">No articles are here... yet.</div>;

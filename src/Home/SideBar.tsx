@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { Link } from "react-router-dom";
 import { from, map, switchMap } from "rxjs";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
+import { Link } from "../router";
 import { tagSignal } from "./Articles";
 
 const tags$ = root.substate(() =>

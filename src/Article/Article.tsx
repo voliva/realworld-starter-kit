@@ -11,21 +11,17 @@ import {
 } from "rxjs";
 import { Article as APIArticle } from "../apiTypes";
 import { combineStates, useStateObservable } from "../react-bindings";
-import { matchedRoutes$ } from "../matchedRoutes";
 import { user$, userFetch$ } from "../user";
 import { articles$ } from "../Home/Articles";
 import { format } from "date-fns";
 import React, { FC } from "react";
+import { article } from "../router";
 
 const selectedArticle$ = combineStates({
-  matchedRoutes: matchedRoutes$,
+  article,
   user: user$,
 }).substate((ctx, $) => {
-  const routes = ctx(matchedRoutes$);
-  const route = routes?.find((r) => r.route.id === "article");
-  if (!route) return of(null); // TODO routeState
-
-  const slug = route.params.slug!;
+  const slug = ctx(article);
 
   const freshRequest$ = userFetch$<{ article: APIArticle }>(
     ctx,
@@ -43,8 +39,6 @@ const selectedArticle$ = combineStates({
 
 export const Article = () => {
   const article = useStateObservable(selectedArticle$);
-  console.log({ article });
-  if (!article) return null;
 
   return (
     <div className="article-page">

@@ -1,19 +1,16 @@
-import { Link, Form } from "react-router-dom";
 import {
   concat,
   exhaustMap,
   from,
   map,
   Observable,
-  of,
   startWith,
   switchMap,
-  tap,
 } from "rxjs";
 import { User } from "../apiTypes";
 import { useStateObservable } from "../react-bindings";
 import { API_URL, root } from "../root";
-import { router } from "../router";
+import { Link, navigate } from "../router";
 import { userSignal } from "../user";
 
 const loginSignal = root.createSignal<{
@@ -56,7 +53,7 @@ const loginResult$ = root.substate(
               }
               if (res.user) {
                 userSignal.push(res.user);
-                router.navigate("/");
+                navigate("/");
               }
               return {
                 loading: false,
