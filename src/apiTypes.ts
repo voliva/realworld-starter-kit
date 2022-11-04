@@ -27,3 +27,11 @@ export interface ArticlesResponse {
   articles: Array<Article>;
   articlesCount: number;
 }
+
+export interface Comment {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+  body: string;
+  author: Author;
+}

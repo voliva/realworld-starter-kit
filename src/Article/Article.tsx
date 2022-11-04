@@ -4,12 +4,14 @@ import {
   EMPTY,
   filter,
   map,
+  mergeMap,
   NEVER,
   of,
   race,
+  startWith,
   take,
 } from "rxjs";
-import { Article as APIArticle } from "../apiTypes";
+import { Article as APIArticle, Comment as APIComment } from "../apiTypes";
 import { combineStates, useStateObservable } from "../react-bindings";
 import { user$, userFetch$ } from "../user";
 import { articles$ } from "../Home/Articles";
@@ -77,73 +79,102 @@ export const Article = () => {
         <ArticleMeta article={article} />
 
         <div className="row">
-          <div className="col-xs-12 col-md-8 offset-md-2">
-            <form className="card comment-form">
-              <div className="card-block">
-                <textarea
-                  className="form-control"
-                  placeholder="Write a comment..."
-                  rows={3}
-                ></textarea>
-              </div>
-              <div className="card-footer">
-                <img
-                  src="http://i.imgur.com/Qr71crq.jpg"
-                  className="comment-author-img"
-                />
-                <button className="btn btn-sm btn-primary">Post Comment</button>
-              </div>
-            </form>
-
-            <div className="card">
-              <div className="card-block">
-                <p className="card-text">
-                  With supporting text below as a natural lead-in to additional
-                  content.
-                </p>
-              </div>
-              <div className="card-footer">
-                <a href="" className="comment-author">
-                  <img
-                    src="http://i.imgur.com/Qr71crq.jpg"
-                    className="comment-author-img"
-                  />
-                </a>
-                &nbsp;
-                <a href="" className="comment-author">
-                  Jacob Schmidt
-                </a>
-                <span className="date-posted">Dec 29th</span>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-block">
-                <p className="card-text">
-                  With supporting text below as a natural lead-in to additional
-                  content.
-                </p>
-              </div>
-              <div className="card-footer">
-                <a href="" className="comment-author">
-                  <img
-                    src="http://i.imgur.com/Qr71crq.jpg"
-                    className="comment-author-img"
-                  />
-                </a>
-                &nbsp;
-                <a href="" className="comment-author">
-                  Jacob Schmidt
-                </a>
-                <span className="date-posted">Dec 29th</span>
-                <span className="mod-options">
-                  <i className="ion-edit"></i>
-                  <i className="ion-trash-a"></i>
-                </span>
-              </div>
-            </div>
-          </div>
+          <Comments />
         </div>
+      </div>
+    </div>
+  );
+};
+
+const comments$ = selectedArticle$.substate((ctx) => {
+  const article = ctx(selectedArticle$);
+
+  return userFetch$<{ comments: APIComment[] }>(
+    ctx,
+    `/articles/${article.slug}/comments`
+  ).pipe(
+    map((v) => v.comments),
+    startWith([])
+  );
+});
+
+const Comments = () => {
+  const comments = useStateObservable(comments$);
+
+  return (
+    <div className="col-xs-12 col-md-8 offset-md-2">
+      <PostComment />
+
+      {comments.map((c) => (
+        <Comment key={c.id} comment={c} />
+      ))}
+    </div>
+  );
+};
+
+const PostComment = () => {
+  const user = useStateObservable(user$);
+
+  if (!user) return null;
+
+  return (
+    <form className="card comment-form">
+      <div className="card-block">
+        <textarea
+          className="form-control"
+          placeholder="Write a comment..."
+          rows={3}
+        ></textarea>
+      </div>
+      <div className="card-footer">
+        <img src={user.image} className="comment-author-img" />
+        <button className="btn btn-sm btn-primary">Post Comment</button>
+      </div>
+    </form>
+  );
+};
+
+const deleteComment$ = comments$.createSignal<number>();
+// TODO with insntances it should be easier to delete one speicifc instance
+comments$.substate((ctx, $) => {
+  const article = ctx(selectedArticle$);
+
+  return $(deleteComment$).pipe(
+    mergeMap((id) =>
+      userFetch$(ctx, `/articles/${article.slug}/comments/${id}`, {
+        method: "DELETE",
+      })
+    )
+  );
+});
+
+const Comment: FC<{ comment: APIComment }> = ({ comment }) => {
+  const user = useStateObservable(user$);
+
+  return (
+    <div className="card">
+      <div className="card-block">
+        <p className="card-text">{comment.body}</p>
+      </div>
+      <div className="card-footer">
+        <a href="" className="comment-author">
+          <img src={comment.author.image} className="comment-author-img" />
+        </a>
+        &nbsp;
+        <a href="" className="comment-author">
+          {comment.author.username}
+        </a>
+        <span className="date-posted">
+          {format(new Date(comment.createdAt), "MMMM d, yyyy")}
+        </span>
+        <span className="mod-options">
+          {user?.username === comment.author.username ? (
+            <i
+              className="ion-trash-a"
+              onClick={() => deleteComment$.push(comment.id)}
+            ></i>
+          ) : null}
+        </span>
       </div>
     </div>
   );
