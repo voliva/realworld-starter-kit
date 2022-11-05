@@ -34,14 +34,20 @@ export const isLoggedIn$ = user$.substate((ctx) => of(ctx(user$) !== null));
 export const userFetch$ = <T>(
   ctx: CtxValue,
   path: string,
-  init?: RequestInit
+  init?: Omit<RequestInit, "body"> & { body?: any }
 ) =>
   defer(() => {
     const token = ctx(user$)?.token;
 
     return fetch(`${API_URL}${path}`, {
       ...init,
+      body: init?.body ? JSON.stringify(init.body) : undefined,
       headers: {
+        ...(typeof init?.body === "object"
+          ? {
+              "content-type": "application/json",
+            }
+          : {}),
         ...init?.headers,
         ...(token
           ? {

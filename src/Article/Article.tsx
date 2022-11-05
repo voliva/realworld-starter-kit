@@ -2,13 +2,16 @@ import {
   catchError,
   concat,
   EMPTY,
+  exhaustMap,
   filter,
   map,
+  merge,
   mergeMap,
   NEVER,
   of,
   race,
   startWith,
+  switchMap,
   take,
 } from "rxjs";
 import { Article as APIArticle, Comment as APIComment } from "../apiTypes";
@@ -86,7 +89,46 @@ export const Article = () => {
   );
 };
 
-const comments$ = selectedArticle$.substate((ctx) => {
+const deleteComment$ = selectedArticle$.createSignal<number>();
+const createComment$ = selectedArticle$.createSignal<string>();
+
+// TODO subsignal?
+/**
+ * For delete maybe it doesn't make that much sense, but for create it does.
+ * On create I want to 1. Add a new instance, 2. clear the form.
+ * If I have a "subsignal" (or a derived signal), then I can have just one observable
+ * that emits when a post is created, then each observable reacts to that.
+ */
+const deletedComment$ = selectedArticle$.substate((ctx, $) => {
+  const article = ctx(selectedArticle$);
+
+  return $(deleteComment$).pipe(
+    mergeMap((id) =>
+      userFetch$(ctx, `/articles/${article.slug}/comments/${id}`, {
+        method: "DELETE",
+      }).pipe(map(() => id))
+    )
+  );
+});
+const createdComment$ = selectedArticle$.substate((ctx, $) => {
+  const article = ctx(selectedArticle$);
+
+  return $(createComment$).pipe(
+    exhaustMap((body) =>
+      userFetch$<{ comment: APIComment }>(
+        ctx,
+        `/articles/${article.slug}/comments`,
+        {
+          method: "POST",
+          body: { comment: { body } },
+        }
+      )
+    ),
+    map((v) => v.comment)
+  );
+});
+
+const comments$ = selectedArticle$.substate((ctx, $) => {
   const article = ctx(selectedArticle$);
 
   return userFetch$<{ comments: APIComment[] }>(
@@ -94,6 +136,22 @@ const comments$ = selectedArticle$.substate((ctx) => {
     `/articles/${article.slug}/comments`
   ).pipe(
     map((v) => v.comments),
+    switchMap((initialValue) =>
+      merge(
+        $(deletedComment$).pipe(
+          map((id) => {
+            return (initialValue = initialValue.filter(
+              (coment) => coment.id !== id
+            ));
+          })
+        ),
+        $(createdComment$).pipe(
+          map((comment) => {
+            return (initialValue = [comment, ...initialValue]);
+          })
+        )
+      ).pipe(startWith(initialValue))
+    ),
     startWith([])
   );
 });
@@ -112,18 +170,34 @@ const Comments = () => {
   );
 };
 
+const bodySignal$ = selectedArticle$.createSignal<string>();
+const newCommentBody$ = selectedArticle$.substate((_, $) =>
+  merge($(bodySignal$), $(createdComment$).pipe(map(() => ""))).pipe(
+    startWith("")
+  )
+);
 const PostComment = () => {
   const user = useStateObservable(user$);
+  const body = useStateObservable(newCommentBody$);
 
   if (!user) return null;
 
+  const handleSubmit = (evt: React.FormEvent) => {
+    evt.preventDefault();
+    if (body.length) {
+      createComment$.push(body);
+    }
+  };
+
   return (
-    <form className="card comment-form">
+    <form className="card comment-form" onSubmit={handleSubmit}>
       <div className="card-block">
         <textarea
           className="form-control"
           placeholder="Write a comment..."
           rows={3}
+          value={body}
+          onChange={(e) => bodySignal$.push(e.target.value)}
         ></textarea>
       </div>
       <div className="card-footer">
@@ -133,20 +207,6 @@ const PostComment = () => {
     </form>
   );
 };
-
-const deleteComment$ = comments$.createSignal<number>();
-// TODO with insntances it should be easier to delete one speicifc instance
-comments$.substate((ctx, $) => {
-  const article = ctx(selectedArticle$);
-
-  return $(deleteComment$).pipe(
-    mergeMap((id) =>
-      userFetch$(ctx, `/articles/${article.slug}/comments/${id}`, {
-        method: "DELETE",
-      })
-    )
-  );
-});
 
 const Comment: FC<{ comment: APIComment }> = ({ comment }) => {
   const user = useStateObservable(user$);
