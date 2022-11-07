@@ -56,4 +56,8 @@ export const userFetch$ = <T>(
           : {}),
       },
     });
-  }).pipe(switchMap((r) => r.json() as Promise<T>));
+  }).pipe(
+    switchMap((r) =>
+      r.status === 204 ? of(undefined as T) : (r.json() as Promise<T>)
+    )
+  );

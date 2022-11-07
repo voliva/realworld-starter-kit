@@ -8,11 +8,11 @@ import {
   merge,
   mergeMap,
   NEVER,
-  of,
   race,
   startWith,
   switchMap,
   take,
+  tap,
 } from "rxjs";
 import { Article as APIArticle, Comment as APIComment } from "../apiTypes";
 import { combineStates, useStateObservable } from "../react-bindings";
@@ -20,7 +20,8 @@ import { user$, userFetch$ } from "../user";
 import { articles$ } from "../Home/Articles";
 import { format } from "date-fns";
 import React, { FC } from "react";
-import { article } from "../router";
+import { article, history, Link } from "../router";
+import { ArticleInfo } from "./ArticleInfo";
 
 const selectedArticle$ = combineStates({
   article,
@@ -79,7 +80,9 @@ export const Article = () => {
 
         <hr />
 
-        <ArticleMeta article={article} />
+        <div className="article-actions">
+          <ArticleMeta article={article} />
+        </div>
 
         <div className="row">
           <Comments />
@@ -240,28 +243,68 @@ const Comment: FC<{ comment: APIComment }> = ({ comment }) => {
   );
 };
 
-const ArticleMeta: FC<{ article: APIArticle }> = ({ article }) => (
-  <div className="article-meta">
-    <a href="">
-      <img src={article.author.image} />
-    </a>
-    <div className="info">
-      {/* TODO is this shared with Articles?*/}
-      <a href="" className="author">
-        {article.author.username}
+const deleteSignal$ = selectedArticle$.createSignal();
+selectedArticle$.substate((ctx, $) => {
+  const article = ctx(selectedArticle$);
+
+  return $(deleteSignal$).pipe(
+    exhaustMap(() =>
+      userFetch$(ctx, "/articles/" + article.slug, {
+        method: "DELETE",
+      })
+    ),
+    tap(() => history.push("/"))
+  );
+});
+
+const ArticleMeta: FC<{ article: APIArticle }> = ({ article }) => {
+  const user = useStateObservable(user$);
+
+  function renderOwnActions() {
+    return (
+      <>
+        <Link
+          className="btn btn-sm btn-outline-secondary"
+          to={`/editor/${article.slug}`}
+        >
+          <i className="ion-edit"></i>
+          &nbsp; Edit Article{" "}
+        </Link>
+        <button
+          className="btn btn-sm btn-outline-danger"
+          onClick={() => deleteSignal$.push(null)}
+        >
+          <i className="ion-trash-a"></i>
+          &nbsp; Delete Article{" "}
+        </button>
+      </>
+    );
+  }
+  function renderOthersActions() {
+    return (
+      <>
+        <button className="btn btn-sm btn-outline-secondary">
+          <i className="ion-plus-round"></i>
+          &nbsp; Follow {article.author.username}{" "}
+        </button>
+        <button className="btn btn-sm btn-outline-primary">
+          <i className="ion-heart"></i>
+          &nbsp; Favorite Article{" "}
+          <span className="counter">({article.favoritesCount})</span>
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <div className="article-meta">
+      <a href="">
+        <img src={article.author.image} />
       </a>
-      <span className="date">
-        {format(new Date(article.createdAt), "MMMM d, yyyy")}
-      </span>
+      <ArticleInfo article={article} />
+      {user?.username === article.author.username
+        ? renderOwnActions()
+        : renderOthersActions()}
     </div>
-    <button className="btn btn-sm btn-outline-secondary">
-      <i className="ion-plus-round"></i>
-      &nbsp; Follow {article.author.username}{" "}
-    </button>
-    <button className="btn btn-sm btn-outline-primary">
-      <i className="ion-heart"></i>
-      &nbsp; Favorite Article{" "}
-      <span className="counter">({article.favoritesCount})</span>
-    </button>
-  </div>
-);
+  );
+};

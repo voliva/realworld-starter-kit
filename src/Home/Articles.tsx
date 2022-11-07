@@ -1,5 +1,4 @@
 import classnames from "classnames";
-import { format } from "date-fns";
 import { FC, Suspense } from "react";
 import {
   concat,
@@ -12,13 +11,19 @@ import {
   withLatestFrom,
 } from "rxjs";
 import { Article, ArticlesResponse } from "../apiTypes";
-import { useStateObservable } from "../react-bindings";
-import { Link, navigate } from "../router";
+import { ArticleInfo } from "../Article/ArticleInfo";
+import { combineStates, useStateObservable } from "../react-bindings";
+import { home, Link, navigate } from "../router";
 import { isLoggedIn$, user$, userFetch$ } from "../user";
 
-const tabSignal = user$.createSignal<"global" | "yours">();
-export const tagSignal = user$.createSignal<string>();
-const selectedTab$ = user$.substate(
+const homeNode = combineStates({
+  user$,
+  home,
+});
+
+const tabSignal = homeNode.createSignal<"global" | "yours">();
+export const tagSignal = homeNode.createSignal<string>();
+const selectedTab$ = homeNode.substate(
   (ctx, $): Observable<"global" | "yours" | `#${string}`> => {
     const user = ctx(user$);
     return merge(
@@ -138,14 +143,7 @@ const ArticlesView: FC<{ articles: Article[]; isLoading: boolean }> = ({
             <a href="profile.html">
               <img src={article.author.image} />
             </a>
-            <div className="info">
-              <a href="" className="author">
-                {article.author.username}
-              </a>
-              <span className="date">
-                {format(new Date(article.createdAt), "MMMM d, yyyy")}
-              </span>
-            </div>
+            <ArticleInfo article={article} />
             <button
               className={classnames("btn btn-sm pull-xs-right", {
                 "btn-outline-primary": !article.favorited,
