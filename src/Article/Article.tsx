@@ -8,6 +8,7 @@ import {
   merge,
   mergeMap,
   NEVER,
+  of,
   race,
   startWith,
   switchMap,
@@ -22,7 +23,9 @@ import { format } from "date-fns";
 import React, { FC } from "react";
 import { article, history, Link } from "../router";
 import { ArticleInfo } from "./ArticleInfo";
+import classNames from "classnames";
 
+const favoriteSignal = article.createSignal();
 const selectedArticle$ = combineStates({
   article,
   user: user$,
@@ -40,7 +43,26 @@ const selectedArticle$ = combineStates({
     catchError(() => EMPTY)
   );
 
-  return race(concat(existingArticle$, NEVER), freshRequest$);
+  return race(concat(existingArticle$, NEVER), freshRequest$).pipe(
+    switchMap((initialValue) =>
+      $(favoriteSignal).pipe(
+        switchMap(() =>
+          userFetch$<{ article: APIArticle }>(
+            ctx,
+            `/articles/${initialValue.slug}/favorite`,
+            {
+              method: initialValue.favorited ? "DELETE" : "POST",
+            }
+          )
+        ),
+        map(({ article }) => {
+          initialValue.favorited = article.favorited;
+          return article;
+        }),
+        startWith(initialValue)
+      )
+    )
+  );
 });
 
 export const Article = () => {
@@ -131,33 +153,40 @@ const createdComment$ = selectedArticle$.substate((ctx, $) => {
   );
 });
 
-const comments$ = selectedArticle$.substate((ctx, $) => {
-  const article = ctx(selectedArticle$);
+const comments$ = selectedArticle$
+  .substate(
+    // TODO I don't want the selectedArticle$ from killing this observable, but I can't put this up to selectedArticle$ either because then it doesn't emit updates
+    // (which is ok for this observable, but not good for the UI because the update could be relevant)
+    (ctx) => of(ctx(selectedArticle$)),
+    (a, b) => a.slug === b.slug
+  )
+  .substate((ctx, $) => {
+    const article = ctx(selectedArticle$);
 
-  return userFetch$<{ comments: APIComment[] }>(
-    ctx,
-    `/articles/${article.slug}/comments`
-  ).pipe(
-    map((v) => v.comments),
-    switchMap((initialValue) =>
-      merge(
-        $(deletedComment$).pipe(
-          map((id) => {
-            return (initialValue = initialValue.filter(
-              (coment) => coment.id !== id
-            ));
-          })
-        ),
-        $(createdComment$).pipe(
-          map((comment) => {
-            return (initialValue = [comment, ...initialValue]);
-          })
-        )
-      ).pipe(startWith(initialValue))
-    ),
-    startWith([])
-  );
-});
+    return userFetch$<{ comments: APIComment[] }>(
+      ctx,
+      `/articles/${article.slug}/comments`
+    ).pipe(
+      map((v) => v.comments),
+      switchMap((initialValue) =>
+        merge(
+          $(deletedComment$).pipe(
+            map((id) => {
+              return (initialValue = initialValue.filter(
+                (coment) => coment.id !== id
+              ));
+            })
+          ),
+          $(createdComment$).pipe(
+            map((comment) => {
+              return (initialValue = [comment, ...initialValue]);
+            })
+          )
+        ).pipe(startWith(initialValue))
+      ),
+      startWith([])
+    );
+  });
 
 const Comments = () => {
   const comments = useStateObservable(comments$);
@@ -287,9 +316,15 @@ const ArticleMeta: FC<{ article: APIArticle }> = ({ article }) => {
           <i className="ion-plus-round"></i>
           &nbsp; Follow {article.author.username}{" "}
         </button>
-        <button className="btn btn-sm btn-outline-primary">
+        <button
+          className={classNames("btn btn-sm", {
+            "btn-outline-primary": !article.favorited,
+            "btn-primary": article.favorited,
+          })}
+          onClick={() => favoriteSignal.push(null)}
+        >
           <i className="ion-heart"></i>
-          &nbsp; Favorite Article{" "}
+          &nbsp; {article.favorited ? "Unfavorite" : "Favorite"} Article{" "}
           <span className="counter">({article.favoritesCount})</span>
         </button>
       </>
