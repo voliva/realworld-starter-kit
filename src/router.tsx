@@ -16,9 +16,10 @@ export const history$ = root.substate(
     })
 );
 
-export const [activeRoute, { article, home }] = history$.routeState(
+export const [activeRoute, { article, profile, home }] = history$.routeState(
   {
     article: ({ location }) => location.pathname.substring("/article/".length),
+    profile: ({ location }) => location.pathname.substring(2),
     home: null,
     none: null,
   },
@@ -28,6 +29,9 @@ export const [activeRoute, { article, home }] = history$.routeState(
     }
     if (location.pathname.startsWith("/article")) {
       return "article";
+    }
+    if (location.pathname.startsWith("/@")) {
+      return "profile";
     }
     return "none";
   }

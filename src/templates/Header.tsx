@@ -31,7 +31,7 @@ export const Header = () => {
                 </Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/user">
+                <Link className="nav-link" to={`/@${user.username}`}>
                   <img src={user.image} className="user-pic" />
                   &nbsp;{user.username}
                 </Link>

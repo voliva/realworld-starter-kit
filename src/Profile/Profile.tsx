@@ -1,19 +1,38 @@
+import { map } from "rxjs";
+import { Profile as APIProfile } from "../apiTypes";
+import { combineStates, useStateObservable } from "../react-bindings";
+import { profile } from "../router";
+import { user$, userFetch$ } from "../user";
+import { ArticleInfo } from "../Article/ArticleInfo";
+
+const selectedProfile$ = combineStates({
+  profile,
+  user$,
+}).substate((ctx, $) => {
+  const profileName = ctx(profile);
+
+  return userFetch$<{ profile: APIProfile }>(
+    ctx,
+    `/profiles/${profileName}`
+  ).pipe(map(({ profile }) => profile));
+});
+
 export const Profile = () => {
+  const profile = useStateObservable(selectedProfile$);
+
   return (
     <div className="profile-page">
       <div className="user-info">
         <div className="container">
           <div className="row">
             <div className="col-xs-12 col-md-10 offset-md-1">
-              <img src="http://i.imgur.com/Qr71crq.jpg" className="user-img" />
-              <h4>Eric Simons</h4>
-              <p>
-                Cofounder @GoThinkster, lived in Aol's HQ for a few months,
-                kinda looks like Peeta from the Hunger Games
-              </p>
+              <img src={profile.image} className="user-img" />
+              <h4>{profile.username}</h4>
+              <p>{profile.bio}</p>
               <button className="btn btn-sm btn-outline-secondary action-btn">
                 <i className="ion-plus-round"></i>
-                &nbsp; Follow Eric Simons
+                &nbsp; {profile.following ? "Follow" : "Unfollow"}{" "}
+                {profile.username}
               </button>
             </div>
           </div>

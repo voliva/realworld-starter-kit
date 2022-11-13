@@ -33,7 +33,7 @@ const favoriteSignal = article.createSignal();
 const followSignal = article.createSignal();
 const selectedArticle$ = combineStates({
   article,
-  user: user$,
+  user$,
 }).substate((ctx, $) => {
   const slug = ctx(article);
 
@@ -274,9 +274,9 @@ const Comment: FC<{ comment: APIComment }> = ({ comment }) => {
           <img src={comment.author.image} className="comment-author-img" />
         </a>
         &nbsp;
-        <a href="" className="comment-author">
+        <Link to={`/@${comment.author.username}`} className="comment-author">
           {comment.author.username}
-        </a>
+        </Link>
         <span className="date-posted">
           {format(new Date(comment.createdAt), "MMMM d, yyyy")}
         </span>
