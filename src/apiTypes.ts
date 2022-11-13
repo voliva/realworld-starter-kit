@@ -5,14 +5,14 @@ export interface User {
   image: string;
   token: string;
 }
-export interface Author {
+export interface Profile {
   bio: null;
   following: boolean;
   image: string;
   username: string;
 }
 export interface Article {
-  author: Author;
+  author: Profile;
   body: string;
   createdAt: string;
   description: string;
@@ -33,5 +33,5 @@ export interface Comment {
   createdAt: string;
   updatedAt: string;
   body: string;
-  author: Author;
+  author: Profile;
 }

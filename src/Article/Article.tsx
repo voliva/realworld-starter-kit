@@ -15,7 +15,11 @@ import {
   take,
   tap,
 } from "rxjs";
-import { Article as APIArticle, Comment as APIComment } from "../apiTypes";
+import {
+  Article as APIArticle,
+  Comment as APIComment,
+  Profile,
+} from "../apiTypes";
 import { combineStates, useStateObservable } from "../react-bindings";
 import { user$, userFetch$ } from "../user";
 import { articles$ } from "../Home/Articles";
@@ -26,6 +30,7 @@ import { ArticleInfo } from "./ArticleInfo";
 import classNames from "classnames";
 
 const favoriteSignal = article.createSignal();
+const followSignal = article.createSignal();
 const selectedArticle$ = combineStates({
   article,
   user: user$,
@@ -45,22 +50,38 @@ const selectedArticle$ = combineStates({
 
   return race(concat(existingArticle$, NEVER), freshRequest$).pipe(
     switchMap((initialValue) =>
-      $(favoriteSignal).pipe(
-        switchMap(() =>
-          userFetch$<{ article: APIArticle }>(
-            ctx,
-            `/articles/${initialValue.slug}/favorite`,
-            {
-              method: initialValue.favorited ? "DELETE" : "POST",
-            }
-          )
+      merge(
+        $(favoriteSignal).pipe(
+          switchMap(() =>
+            userFetch$<{ article: APIArticle }>(
+              ctx,
+              `/articles/${initialValue.slug}/favorite`,
+              {
+                method: initialValue.favorited ? "DELETE" : "POST",
+              }
+            )
+          ),
+          map(({ article }) => {
+            initialValue.favorited = article.favorited;
+            return article;
+          })
         ),
-        map(({ article }) => {
-          initialValue.favorited = article.favorited;
-          return article;
-        }),
-        startWith(initialValue)
-      )
+        $(followSignal).pipe(
+          switchMap(() =>
+            userFetch$<{ profile: Profile }>(
+              ctx,
+              `/profiles/${initialValue.author.username}/follow`,
+              {
+                method: initialValue.author.following ? "DELETE" : "POST",
+              }
+            )
+          ),
+          map(({ profile }) => {
+            initialValue.author = profile;
+            return { ...initialValue };
+          })
+        )
+      ).pipe(startWith(initialValue))
     )
   );
 });
@@ -312,9 +333,16 @@ const ArticleMeta: FC<{ article: APIArticle }> = ({ article }) => {
   function renderOthersActions() {
     return (
       <>
-        <button className="btn btn-sm btn-outline-secondary">
+        <button
+          className={classNames("btn btn-sm", {
+            "btn-outline-secondary": !article.author.following,
+            "btn-secondary": article.author.following,
+          })}
+          onClick={() => followSignal.push(null)}
+        >
           <i className="ion-plus-round"></i>
-          &nbsp; Follow {article.author.username}{" "}
+          &nbsp; {article.author.following ? "Unfollow" : "Follow"}{" "}
+          {article.author.username}{" "}
         </button>
         <button
           className={classNames("btn btn-sm", {
