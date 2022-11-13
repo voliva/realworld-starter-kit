@@ -1,35 +1,22 @@
-import classnames from "classnames";
-import { Suspense } from "react";
 import {
   concat,
   filter,
   map,
-  merge,
   Observable,
   startWith,
   switchMap,
   withLatestFrom,
 } from "rxjs";
-import { Article, ArticlesResponse } from "../apiTypes";
+import { ArticlesResponse, Article } from "../apiTypes";
+import { ArticlesView, Pagination } from "../Home/ArticlesView";
 import { combineStates, useStateObservable } from "../react-bindings";
-import { home, Link } from "../router";
-import { isLoggedIn$, user$, userFetch$ } from "../user";
-import { ArticlesView, Pagination } from "./ArticlesView";
+import { profile } from "../router";
+import { user$, userFetch$ } from "../user";
 
-const homeNode = combineStates({
-  user$,
-  home,
-});
-
-const tabSignal = homeNode.createSignal<"global" | "yours">();
-export const tagSignal = homeNode.createSignal<string>();
-const selectedTab$ = homeNode.substate(
-  (ctx, $): Observable<"global" | "yours" | `#${string}`> => {
-    const user = ctx(user$);
-    return merge(
-      $(tabSignal),
-      $(tagSignal).pipe(map((v) => `#${v}` as const))
-    ).pipe(startWith(user ? ("yours" as const) : ("global" as const)));
+export const tabSignal = profile.createSignal<"myArticles" | "favorited">();
+export const selectedTab$ = profile.substate(
+  (_, $): Observable<"myArticles" | "favorited"> => {
+    return $(tabSignal).pipe(startWith("myArticles" as const));
   }
 );
 
@@ -39,26 +26,20 @@ const selectedPage$ = selectedTab$.substate((_, $) =>
 );
 
 const favoriteSignal = selectedTab$.createSignal<string>();
-export const articles$ = selectedTab$.substate(
+const articles$ = combineStates({ selectedTab$, user$ }).substate(
   (ctx, $): Observable<ArticlesResponse & { isLoading: boolean }> => {
     const selectedTab = ctx(selectedTab$);
+    const author = ctx(profile);
 
     const fetchArticles = (page: number) =>
-      selectedTab === "global"
+      selectedTab === "myArticles"
         ? userFetch$<ArticlesResponse>(
             ctx,
-            `/articles?limit=10&offset=${page * 10}`
-          )
-        : selectedTab.startsWith("#")
-        ? userFetch$<ArticlesResponse>(
-            ctx,
-            `/articles?limit=10&offset=${page * 10}&tag=${selectedTab.substring(
-              1
-            )}`
+            `/articles?author=${author}&limit=10&offset=${page * 10}`
           )
         : userFetch$<ArticlesResponse>(
             ctx,
-            `/articles/feed?limit=10&offset=${page * 10}`
+            `/articles?favorited=${author}&limit=10&offset=${page * 10}`
           );
 
     return $(selectedPage$).pipe(
@@ -109,7 +90,7 @@ export const articles$ = selectedTab$.substate(
   }
 );
 
-const Feed = () => {
+export const Feed = () => {
   const currentPage = useStateObservable(selectedPage$);
   const { articles, articlesCount, isLoading } = useStateObservable(articles$);
 
@@ -128,56 +109,5 @@ const Feed = () => {
         onPageClick={pageSignal.push}
       />
     </>
-  );
-};
-
-export const Articles = () => {
-  const isLoggedIn = useStateObservable(isLoggedIn$);
-  const selectedTab = useStateObservable(selectedTab$);
-
-  return (
-    <div className="col-md-9">
-      <div className="feed-toggle">
-        <ul className="nav nav-pills outline-active">
-          {isLoggedIn ? (
-            <li className="nav-item">
-              <Link
-                className={classnames("nav-link", {
-                  active: selectedTab === "yours",
-                })}
-                to=""
-                onClick={() => tabSignal.push("yours")}
-              >
-                Your Feed
-              </Link>
-            </li>
-          ) : null}
-          <li className="nav-item">
-            <Link
-              className={classnames("nav-link", {
-                active: selectedTab === "global",
-              })}
-              to=""
-              onClick={() => tabSignal.push("global")}
-            >
-              Global Feed
-            </Link>
-          </li>
-          {selectedTab.startsWith("#") ? (
-            <li className="nav-item">
-              <Link className="nav-link active" to="">
-                {selectedTab}
-              </Link>
-            </li>
-          ) : null}
-        </ul>
-      </div>
-
-      <Suspense
-        fallback={<div className="article-preview">Loading articles...</div>}
-      >
-        <Feed />
-      </Suspense>
-    </div>
   );
 };

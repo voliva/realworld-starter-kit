@@ -1,10 +1,13 @@
-import { map } from "rxjs";
+import classNames from "classnames";
+import { Suspense } from "react";
+import { map, startWith, switchMap } from "rxjs";
 import { Profile as APIProfile } from "../apiTypes";
 import { combineStates, useStateObservable } from "../react-bindings";
-import { profile } from "../router";
+import { Link, profile } from "../router";
 import { user$, userFetch$ } from "../user";
-import { ArticleInfo } from "../Article/ArticleInfo";
+import { Feed, selectedTab$, tabSignal } from "./Feed";
 
+const followSignal = profile.createSignal();
 const selectedProfile$ = combineStates({
   profile,
   user$,
@@ -14,11 +17,32 @@ const selectedProfile$ = combineStates({
   return userFetch$<{ profile: APIProfile }>(
     ctx,
     `/profiles/${profileName}`
-  ).pipe(map(({ profile }) => profile));
+  ).pipe(
+    map(({ profile }) => profile),
+    switchMap((initialValue) =>
+      $(followSignal).pipe(
+        switchMap(() =>
+          userFetch$<{ profile: APIProfile }>(
+            ctx,
+            `/profiles/${initialValue.username}/follow`,
+            {
+              method: initialValue.following ? "DELETE" : "POST",
+            }
+          )
+        ),
+        map(({ profile }) => {
+          initialValue.following = profile.following;
+          return profile;
+        }),
+        startWith(initialValue)
+      )
+    )
+  );
 });
 
 export const Profile = () => {
   const profile = useStateObservable(selectedProfile$);
+  const selectedTab = useStateObservable(selectedTab$);
 
   return (
     <div className="profile-page">
@@ -29,9 +53,15 @@ export const Profile = () => {
               <img src={profile.image} className="user-img" />
               <h4>{profile.username}</h4>
               <p>{profile.bio}</p>
-              <button className="btn btn-sm btn-outline-secondary action-btn">
+              <button
+                className={classNames("btn btn-sm action-btn", {
+                  "btn-outline-secondary": !profile.following,
+                  "btn-secondary": profile.following,
+                })}
+                onClick={() => followSignal.push(null)}
+              >
                 <i className="ion-plus-round"></i>
-                &nbsp; {profile.following ? "Follow" : "Unfollow"}{" "}
+                &nbsp; {profile.following ? "Unfollow" : "Follow"}{" "}
                 {profile.username}
               </button>
             </div>
@@ -45,68 +75,37 @@ export const Profile = () => {
             <div className="articles-toggle">
               <ul className="nav nav-pills outline-active">
                 <li className="nav-item">
-                  <a className="nav-link active" href="">
+                  <Link
+                    className={classNames("nav-link", {
+                      active: selectedTab === "myArticles",
+                    })}
+                    to=""
+                    onClick={() => tabSignal.push("myArticles")}
+                  >
                     My Articles
-                  </a>
+                  </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="">
+                  <Link
+                    className={classNames("nav-link", {
+                      active: selectedTab === "favorited",
+                    })}
+                    to=""
+                    onClick={() => tabSignal.push("favorited")}
+                  >
                     Favorited Articles
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
 
-            <div className="article-preview">
-              <div className="article-meta">
-                <a href="">
-                  <img src="http://i.imgur.com/Qr71crq.jpg" />
-                </a>
-                <div className="info">
-                  <a href="" className="author">
-                    Eric Simons
-                  </a>
-                  <span className="date">January 20th</span>
-                </div>
-                <button className="btn btn-outline-primary btn-sm pull-xs-right">
-                  <i className="ion-heart"></i> 29
-                </button>
-              </div>
-              <a href="" className="preview-link">
-                <h1>How to build webapps that scale</h1>
-                <p>This is the description for the post.</p>
-                <span>Read more...</span>
-              </a>
-            </div>
-
-            <div className="article-preview">
-              <div className="article-meta">
-                <a href="">
-                  <img src="http://i.imgur.com/N4VcUeJ.jpg" />
-                </a>
-                <div className="info">
-                  <a href="" className="author">
-                    Albert Pai
-                  </a>
-                  <span className="date">January 20th</span>
-                </div>
-                <button className="btn btn-outline-primary btn-sm pull-xs-right">
-                  <i className="ion-heart"></i> 32
-                </button>
-              </div>
-              <a href="" className="preview-link">
-                <h1>
-                  The song you won't ever stop singing. No matter how hard you
-                  try.
-                </h1>
-                <p>This is the description for the post.</p>
-                <span>Read more...</span>
-                <ul className="tag-list">
-                  <li className="tag-default tag-pill tag-outline">Music</li>
-                  <li className="tag-default tag-pill tag-outline">Song</li>
-                </ul>
-              </a>
-            </div>
+            <Suspense
+              fallback={
+                <div className="article-preview">Loading articles...</div>
+              }
+            >
+              <Feed />
+            </Suspense>
           </div>
         </div>
       </div>
