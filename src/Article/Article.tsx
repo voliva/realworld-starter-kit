@@ -20,7 +20,7 @@ import {
   Comment as APIComment,
   Profile,
 } from "../apiTypes";
-import { combineStates, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateObservable } from "../react-bindings";
 import { user$, userFetch$ } from "../user";
 import { articles$ } from "../Home/Articles";
 import { format } from "date-fns";
@@ -31,7 +31,7 @@ import classNames from "classnames";
 
 const favoriteSignal = article.createSignal();
 const followSignal = article.createSignal();
-const selectedArticle$ = combineStates({
+const selectedArticle$ = combineStateNodes({
   article,
   user$,
 }).substate((ctx, $) => {

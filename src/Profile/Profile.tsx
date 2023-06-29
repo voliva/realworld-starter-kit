@@ -2,13 +2,13 @@ import classNames from "classnames";
 import { Suspense } from "react";
 import { map, startWith, switchMap } from "rxjs";
 import { Profile as APIProfile } from "../apiTypes";
-import { combineStates, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateObservable } from "../react-bindings";
 import { Link, profile } from "../router";
 import { user$, userFetch$ } from "../user";
 import { Feed, selectedTab$, tabSignal } from "./Feed";
 
 const followSignal = profile.createSignal();
-const selectedProfile$ = combineStates({
+const selectedProfile$ = combineStateNodes({
   profile,
   user$,
 }).substate((ctx, $) => {

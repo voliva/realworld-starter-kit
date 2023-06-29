@@ -1,6 +1,6 @@
 import { defer, map, merge, Observable, of, switchMap, tap } from "rxjs";
 import { User } from "./apiTypes";
-import { CtxValue } from "./react-bindings";
+import { GetValueFn } from "./react-bindings";
 import { API_URL, root } from "./root";
 
 export const userSignal = root.createSignal<User>();
@@ -32,7 +32,7 @@ export const user$ = root.substate((_, $): Observable<User | null> => {
 export const isLoggedIn$ = user$.substate((ctx) => of(ctx(user$) !== null));
 
 export const userFetch$ = <T>(
-  ctx: CtxValue,
+  ctx: GetValueFn,
   path: string,
   init?: Omit<RequestInit, "body"> & { body?: any }
 ) =>

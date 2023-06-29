@@ -11,12 +11,12 @@ import {
   withLatestFrom,
 } from "rxjs";
 import { Article, ArticlesResponse } from "../apiTypes";
-import { combineStates, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateObservable } from "../react-bindings";
 import { home, Link } from "../router";
 import { isLoggedIn$, user$, userFetch$ } from "../user";
 import { ArticlesView, Pagination } from "./ArticlesView";
 
-const homeNode = combineStates({
+const homeNode = combineStateNodes({
   user$,
   home,
 });

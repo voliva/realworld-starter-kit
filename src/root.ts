@@ -1,5 +1,5 @@
-import { createRoot } from "./react-bindings";
+import { RootNode } from "./react-bindings";
 
 export const API_URL = "https://api.realworld.io/api";
 
-export const root = createRoot();
+export const root = new RootNode();

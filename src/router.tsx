@@ -16,7 +16,7 @@ export const history$ = root.substate(
     })
 );
 
-export const [activeRoute, { article, profile, home }] = history$.routeState(
+export const activeRoute = history$.routeState(
   {
     article: ({ location }) => location.pathname.substring("/article/".length),
     profile: ({ location }) => location.pathname.substring(2),
@@ -36,6 +36,8 @@ export const [activeRoute, { article, profile, home }] = history$.routeState(
     return "none";
   }
 );
+
+export const { article, home, profile } = activeRoute.route;
 
 export const Link: FC<
   PropsWithChildren<{

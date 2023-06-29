@@ -9,7 +9,7 @@ import {
 } from "rxjs";
 import { ArticlesResponse, Article } from "../apiTypes";
 import { ArticlesView, Pagination } from "../Home/ArticlesView";
-import { combineStates, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateObservable } from "../react-bindings";
 import { profile } from "../router";
 import { user$, userFetch$ } from "../user";
 
@@ -26,7 +26,7 @@ const selectedPage$ = selectedTab$.substate((_, $) =>
 );
 
 const favoriteSignal = selectedTab$.createSignal<string>();
-const articles$ = combineStates({ selectedTab$, user$ }).substate(
+const articles$ = combineStateNodes({ selectedTab$, user$ }).substate(
   (ctx, $): Observable<ArticlesResponse & { isLoading: boolean }> => {
     const selectedTab = ctx(selectedTab$);
     const author = ctx(profile);
