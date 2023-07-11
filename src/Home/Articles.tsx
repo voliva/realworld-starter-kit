@@ -2,12 +2,15 @@ import classnames from "classnames";
 import { Suspense } from "react";
 import {
   concat,
+  EMPTY,
   filter,
   map,
   merge,
   Observable,
+  pairwise,
   startWith,
   switchMap,
+  take,
   withLatestFrom,
 } from "rxjs";
 import { Article, ArticlesResponse } from "../apiTypes";
@@ -38,8 +41,7 @@ const selectedPage$ = selectedTab$.substate((_, $) =>
   $(pageSignal).pipe(startWith(0))
 );
 
-const favoriteSignal = selectedTab$.createSignal<string>();
-export const articles$ = selectedTab$.substate(
+const articlePage$ = selectedTab$.substate(
   (ctx, $): Observable<ArticlesResponse & { isLoading: boolean }> => {
     const selectedTab = ctx(selectedTab$);
 
@@ -62,7 +64,7 @@ export const articles$ = selectedTab$.substate(
           );
 
     return $(selectedPage$).pipe(
-      withLatestFrom($(articles$).pipe(startWith(null))),
+      withLatestFrom($(articlePage$).pipe(startWith(null))),
       switchMap(([page, articles]) => {
         const result = fetchArticles(page).pipe(
           map((response) => ({
@@ -73,41 +75,67 @@ export const articles$ = selectedTab$.substate(
         if (!articles) {
           return result;
         }
+        // TODO react 18 transition support for this?
         return concat([{ ...articles, isLoading: true }], result);
-      }),
-      switchMap((initialValue) =>
-        $(favoriteSignal).pipe(
-          // This should become easier once instances land
-          map(
-            (slug) =>
-              initialValue.articles.find((article) => article.slug === slug)!
-          ),
-          filter((v) => !!v),
-          switchMap((article) =>
-            userFetch$<{ article: Article }>(
-              ctx,
-              `/articles/${article.slug}/favorite`,
-              {
-                method: article.favorited ? "DELETE" : "POST",
-              }
-            )
-          ),
-          map(({ article }) => {
-            const idx = initialValue.articles.findIndex(
-              (a) => a.slug === article.slug
-            );
-            initialValue.articles = [...initialValue.articles];
-            initialValue.articles[idx] = article;
-            return {
-              ...initialValue,
-            };
-          }),
-          startWith(initialValue)
-        )
-      )
+      })
     );
   }
 );
+
+const articles$ = selectedTab$.subinstance(
+  "articleSlug",
+  (_, $) =>
+    $(articlePage$).pipe(
+      filter((response) => !response.isLoading),
+      startWith(null),
+      pairwise(),
+      map(([a, b]) => ({
+        add: b?.articles.map((v) => v.slug),
+        remove: a?.articles.map((v) => v.slug),
+      }))
+    ),
+  (slug, ctx, $) =>
+    $(articlePage$).pipe(
+      take(1),
+      map(
+        (response) =>
+          response.articles.find((article) => article.slug === slug)!
+      ),
+      switchMap(
+        (article): Observable<Article> =>
+          $(favoriteSignal).pipe(
+            switchMap(() =>
+              userFetch$<{ article: Article }>(
+                ctx,
+                `/articles/${article.slug}/favorite`,
+                {
+                  method: article.favorited ? "DELETE" : "POST",
+                }
+              )
+            ),
+            map((result) => {
+              article = result.article;
+              return article;
+            }),
+            startWith(article)
+          )
+      )
+    )
+);
+const favoriteSignal = articles$.createSignal();
+//     map(({ article }) => {
+//       const idx = initialValue.articles.findIndex(
+//         (a) => a.slug === article.slug
+//       );
+//       initialValue.articles = [...initialValue.articles];
+//       initialValue.articles[idx] = article;
+//       return {
+//         ...initialValue,
+//       };
+//     }),
+//     startWith(initialValue)
+//   )
+// )
 
 const Feed = () => {
   const currentPage = useStateNode(selectedPage$);
