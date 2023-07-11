@@ -9,7 +9,7 @@ import {
 } from "rxjs";
 import { ArticlesResponse, Article } from "../apiTypes";
 import { ArticlesView, Pagination } from "../Home/ArticlesView";
-import { combineStateNodes, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateNode } from "@react-rxjs/context-state";
 import { profile } from "../router";
 import { user$, userFetch$ } from "../user";
 
@@ -91,8 +91,8 @@ const articles$ = combineStateNodes({ selectedTab$, user$ }).substate(
 );
 
 export const Feed = () => {
-  const currentPage = useStateObservable(selectedPage$);
-  const { articles, articlesCount, isLoading } = useStateObservable(articles$);
+  const currentPage = useStateNode(selectedPage$);
+  const { articles, articlesCount, isLoading } = useStateNode(articles$);
 
   return (
     <>

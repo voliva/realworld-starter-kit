@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { from, map, switchMap } from "rxjs";
-import { useStateObservable } from "../react-bindings";
+import { useStateNode } from "@react-rxjs/context-state";
 import { API_URL, root } from "../root";
 import { Link } from "../router";
 import { tagSignal } from "./Articles";
@@ -13,7 +13,7 @@ const tags$ = root.substate(() =>
 );
 
 const PopularTags = () => {
-  const tags = useStateObservable(tags$);
+  const tags = useStateNode(tags$);
 
   return (
     <div className="tag-list">

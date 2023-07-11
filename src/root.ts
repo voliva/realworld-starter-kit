@@ -1,4 +1,4 @@
-import { RootNode } from "./react-bindings";
+import { RootNode } from "@react-rxjs/context-state";
 
 export const API_URL = "https://api.realworld.io/api";
 

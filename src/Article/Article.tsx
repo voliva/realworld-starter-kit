@@ -20,7 +20,7 @@ import {
   Comment as APIComment,
   Profile,
 } from "../apiTypes";
-import { combineStateNodes, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateNode } from "@react-rxjs/context-state";
 import { user$, userFetch$ } from "../user";
 import { articles$ } from "../Home/Articles";
 import { format } from "date-fns";
@@ -87,7 +87,7 @@ const selectedArticle$ = combineStateNodes({
 });
 
 export const Article = () => {
-  const article = useStateObservable(selectedArticle$);
+  const article = useStateNode(selectedArticle$);
 
   return (
     <div className="article-page">
@@ -210,7 +210,7 @@ const comments$ = selectedArticle$
   });
 
 const Comments = () => {
-  const comments = useStateObservable(comments$);
+  const comments = useStateNode(comments$);
 
   return (
     <div className="col-xs-12 col-md-8 offset-md-2">
@@ -230,8 +230,8 @@ const newCommentBody$ = selectedArticle$.substate((_, $) =>
   )
 );
 const PostComment = () => {
-  const user = useStateObservable(user$);
-  const body = useStateObservable(newCommentBody$);
+  const user = useStateNode(user$);
+  const body = useStateNode(newCommentBody$);
 
   if (!user) return null;
 
@@ -262,7 +262,7 @@ const PostComment = () => {
 };
 
 const Comment: FC<{ comment: APIComment }> = ({ comment }) => {
-  const user = useStateObservable(user$);
+  const user = useStateNode(user$);
 
   return (
     <div className="card">
@@ -308,7 +308,7 @@ selectedArticle$.substate((ctx, $) => {
 });
 
 const ArticleMeta: FC<{ article: APIArticle }> = ({ article }) => {
-  const user = useStateObservable(user$);
+  const user = useStateNode(user$);
 
   function renderOwnActions() {
     return (

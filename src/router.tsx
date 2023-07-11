@@ -8,6 +8,7 @@ export const history = createHashHistory();
 export const history$ = root.substate(
   () =>
     new Observable<Update>((obs) => {
+      console.log("hist0ry innr");
       obs.next({
         action: history.action,
         location: history.location,

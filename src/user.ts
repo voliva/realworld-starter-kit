@@ -1,6 +1,6 @@
 import { defer, map, merge, Observable, of, switchMap, tap } from "rxjs";
 import { User } from "./apiTypes";
-import { GetValueFn } from "./react-bindings";
+import { GetValueFn } from "@react-rxjs/context-state";
 import { API_URL, root } from "./root";
 
 export const userSignal = root.createSignal<User>();

@@ -2,7 +2,7 @@ import classnames from "classnames";
 import { FC } from "react";
 import { Article } from "../apiTypes";
 import { ArticleInfo } from "../Article/ArticleInfo";
-import { useStateObservable } from "../react-bindings";
+import { useStateNode } from "@react-rxjs/context-state";
 import { navigate, Link } from "../router";
 import { isLoggedIn$ } from "../user";
 
@@ -11,7 +11,7 @@ export const ArticlesView: FC<{
   isLoading: boolean;
   onFavorite: (slug: string) => void;
 }> = ({ articles, isLoading, onFavorite }) => {
-  const isLoggedIn = useStateObservable(isLoggedIn$);
+  const isLoggedIn = useStateNode(isLoggedIn$);
 
   if (articles.length === 0) {
     return <div className="article-preview">No articles are here... yet.</div>;

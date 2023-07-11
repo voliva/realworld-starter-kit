@@ -1,9 +1,9 @@
-import { useStateObservable } from "../react-bindings";
+import { useStateNode } from "@react-rxjs/context-state";
 import { Link } from "../router";
 import { user$ } from "../user";
 
 export const Header = () => {
-  const user = useStateObservable(user$);
+  const user = useStateNode(user$);
 
   return (
     <nav className="navbar navbar-light">

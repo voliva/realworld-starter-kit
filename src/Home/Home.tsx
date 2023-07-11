@@ -1,10 +1,10 @@
-import { useStateObservable } from "../react-bindings";
+import { useStateNode } from "@react-rxjs/context-state";
 import { isLoggedIn$ } from "../user";
 import { Articles } from "./Articles";
 import { SideBar } from "./SideBar";
 
 export const Home = () => {
-  const isLoggedIn = useStateObservable(isLoggedIn$);
+  const isLoggedIn = useStateNode(isLoggedIn$);
 
   return (
     <div className="home-page">

@@ -1,7 +1,7 @@
 import { Article } from "./Article/Article";
 import { Home } from "./Home/Home";
 import { Profile } from "./Profile/Profile";
-import { useStateObservable } from "./react-bindings";
+import { useStateNode } from "@react-rxjs/context-state";
 import { activeRoute } from "./router";
 import { Footer } from "./templates/Footer";
 import { Header } from "./templates/Header";
@@ -14,7 +14,9 @@ const routes = {
 };
 
 function App() {
-  const route = useStateObservable(activeRoute);
+  activeRoute.getState$().subscribe((v) => console.log(v));
+  const route = useStateNode(activeRoute);
+
   return (
     <>
       <Header />

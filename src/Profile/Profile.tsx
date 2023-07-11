@@ -2,7 +2,7 @@ import classNames from "classnames";
 import { Suspense } from "react";
 import { map, startWith, switchMap } from "rxjs";
 import { Profile as APIProfile } from "../apiTypes";
-import { combineStateNodes, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateNode } from "@react-rxjs/context-state";
 import { Link, profile } from "../router";
 import { user$, userFetch$ } from "../user";
 import { Feed, selectedTab$, tabSignal } from "./Feed";
@@ -41,8 +41,8 @@ const selectedProfile$ = combineStateNodes({
 });
 
 export const Profile = () => {
-  const profile = useStateObservable(selectedProfile$);
-  const selectedTab = useStateObservable(selectedTab$);
+  const profile = useStateNode(selectedProfile$);
+  const selectedTab = useStateNode(selectedTab$);
 
   return (
     <div className="profile-page">

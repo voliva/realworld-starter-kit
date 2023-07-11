@@ -11,7 +11,7 @@ import {
   withLatestFrom,
 } from "rxjs";
 import { Article, ArticlesResponse } from "../apiTypes";
-import { combineStateNodes, useStateObservable } from "../react-bindings";
+import { combineStateNodes, useStateNode } from "@react-rxjs/context-state";
 import { home, Link } from "../router";
 import { isLoggedIn$, user$, userFetch$ } from "../user";
 import { ArticlesView, Pagination } from "./ArticlesView";
@@ -110,8 +110,8 @@ export const articles$ = selectedTab$.substate(
 );
 
 const Feed = () => {
-  const currentPage = useStateObservable(selectedPage$);
-  const { articles, articlesCount, isLoading } = useStateObservable(articles$);
+  const currentPage = useStateNode(selectedPage$);
+  const { articles, articlesCount, isLoading } = useStateNode(articles$);
 
   return (
     <>
@@ -132,8 +132,8 @@ const Feed = () => {
 };
 
 export const Articles = () => {
-  const isLoggedIn = useStateObservable(isLoggedIn$);
-  const selectedTab = useStateObservable(selectedTab$);
+  const isLoggedIn = useStateNode(isLoggedIn$);
+  const selectedTab = useStateNode(selectedTab$);
 
   return (
     <div className="col-md-9">

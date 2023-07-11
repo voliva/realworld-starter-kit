@@ -8,7 +8,7 @@ import {
   switchMap,
 } from "rxjs";
 import { User } from "../apiTypes";
-import { useStateObservable } from "../react-bindings";
+import { useStateNode } from "@react-rxjs/context-state";
 import { API_URL, root } from "../root";
 import { Link, navigate } from "../router";
 import { userSignal } from "../user";
@@ -71,7 +71,7 @@ const loginResult$ = root.substate(
 );
 
 export const Login = () => {
-  const { error, loading } = useStateObservable(loginResult$);
+  const { error, loading } = useStateNode(loginResult$);
 
   return (
     <div className="auth-page">
